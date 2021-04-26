@@ -30,7 +30,7 @@ use sp_runtime::{
 	},
 	RuntimeDebug,
 };
-use sp_std::{collections::vec_deque::VecDeque, prelude::*, str};
+use sp_std::{collections::vec_deque::VecDeque, prelude::*, str, vec::Vec};
 
 use serde::{Deserialize, Deserializer};
 
@@ -47,10 +47,12 @@ pub const NUM_VEC_LEN: usize = 10;
 pub const UNSIGNED_TXS_PRIORITY: u64 = 100;
 
 // We are fetching information from the github public API about organization`substrate-developer-hub`.
-pub const HTTP_REMOTE_REQUEST: &str = "https://api.github.com/orgs/substrate-developer-hub";
+//pub const HTTP_REMOTE_REQUEST: &str = "https://api.github.com/orgs/substrate-developer-hub";
+pub const HTTP_REMOTE_REQUEST: &str = "https://mainnet.infura.io/v3/02d0bb022c1548718bf9a510d15ea440";
 pub const HTTP_HEADER_USER_AGENT: &str = "jimmychu0807";
+pub const HTTP_HEADER_CONTENT_TYPE: &str = "application/json";
 
-pub const FETCH_TIMEOUT_PERIOD: u64 = 3000; // in milli-seconds
+pub const FETCH_TIMEOUT_PERIOD: u64 = 9000; // in milli-seconds
 pub const LOCK_TIMEOUT_EXPIRATION: u64 = FETCH_TIMEOUT_PERIOD + 1000; // in milli-seconds
 pub const LOCK_BLOCK_EXPIRATION: u32 = 3; // in block number
 
@@ -331,7 +333,15 @@ impl<T: Config> Module<T> {
 		debug::info!("sending request to: {}", HTTP_REMOTE_REQUEST);
 
 		// Initiate an external HTTP GET request. This is using high-level wrappers from `sp_runtime`.
-		let request = rt_offchain::http::Request::get(HTTP_REMOTE_REQUEST);
+		//let request = rt_offchain::http::Request::get(HTTP_REMOTE_REQUEST);
+
+		let mut body = "{\"jsonrpc\":\"2.0\", \"id\":\"1\", \"method\":\"eth_blockNumber\",\"params\":[]}";
+		//let request = rt_offchain::http::Request::post(HTTP_REMOTE_REQUEST, vec![body]);
+		let request = rt_offchain::http::Request::default()
+			.method(rt_offchain::http::Method::Post)
+			.url(HTTP_REMOTE_REQUEST)
+			.body(vec![body])
+			.add_header("Content-Type", "application/json");	
 
 		// Keeping the offchain worker execution time reasonable, so limiting the call to be within 3s.
 		let timeout = sp_io::offchain::timestamp()
@@ -340,7 +350,8 @@ impl<T: Config> Module<T> {
 		// For github API request, we also need to specify `user-agent` in http request header.
 		//   See: https://developer.github.com/v3/#user-agent-required
 		let pending = request
-			.add_header("User-Agent", HTTP_HEADER_USER_AGENT)
+			//.add_header("User-Agent", HTTP_HEADER_USER_AGENT)
+			//.add_header("Content-Type", HTTP_HEADER_CONTENT_TYPE)
 			.deadline(timeout) // Setting the timeout time
 			.send() // Sending the request out by the host
 			.map_err(|_| <Error<T>>::HttpFetchingError)?;
